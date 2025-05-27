@@ -1,4 +1,5 @@
 import csv
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 import config
@@ -40,8 +41,8 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
         return []
 
     aggregated = []
-    current_candle = candles[0]
     timeframe = timedelta(minutes=timeframe)
+    current_candle = replace(candles[0])
 
     for candle in candles[1:]:
         if candle.date_time < current_candle.date_time + timeframe:
@@ -61,7 +62,7 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
 def main():
     candles = parse_data(file_name=config.FILE_NAME)
 
-    aggregate = aggregate_data(candles=candles, timeframe=60 * SECOND)
+    aggregate = aggregate_data(candles=candles, timeframe=1 * HOUR)
 
     print(aggregate)
 
