@@ -41,7 +41,7 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
         return []
 
     aggregated = []
-    timeframe = timedelta(minutes=timeframe)
+    timeframe = timedelta(seconds=timeframe)
     current_candle = replace(candles[0])
 
     for candle in candles[1:]:
@@ -62,7 +62,7 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
 def main():
     candles = parse_data(file_name=config.FILE_NAME)
 
-    aggregate = aggregate_data(candles=candles, timeframe=1 * MINUTE)
+    aggregate = aggregate_data(candles=candles, timeframe=1 * HOUR)
 
     print(aggregate)
 
