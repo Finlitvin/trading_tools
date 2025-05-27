@@ -1,5 +1,4 @@
 import csv
-from typing import List
 from datetime import datetime, timedelta
 
 import config
@@ -15,10 +14,10 @@ def convert_datetime(date_time: str) -> datetime:
     return datetime.strptime(date_time, "%Y%m%d %H%M%S")
 
 
-def parse_data(file_name: str) -> List[Candle]:
+def parse_data(file_name: str) -> list[Candle]:
     data = []
 
-    with open(file_name, "r") as file:
+    with open(file_name) as file:
         reader = csv.reader(file)
         for row in reader:
             if len(row) != 6:
@@ -36,7 +35,7 @@ def parse_data(file_name: str) -> List[Candle]:
     return data
 
 
-def aggregate_data(candles: List[Candle], timeframe: int) -> List[Candle]:
+def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
     if not candles:
         return []
 

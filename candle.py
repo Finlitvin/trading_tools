@@ -16,13 +16,13 @@ class Candle:
     low: float
     close: float
     volume: float
-    colour: CandleColor = field(init=False)
+    color: CandleColor = field(init=False)
 
-    def set_colour(self) -> None:
+    def set_color(self) -> None:
         if self.close >= self.open_:
-            self.colour = CandleColor.GREEN
+            self.color = CandleColor.GREEN
         else:
-            self.colour = CandleColor.RED
+            self.color = CandleColor.RED
 
     def __post_init__(self) -> None:
-        self.set_colour()
+        self.set_color()
