@@ -8,9 +8,6 @@ exclude = [
     ".venv",
     ".vscode",
     "__pypackages__",
-    "venv",
-    "Makefile",
-    "data.csv"
 ]
 
 [lint]
