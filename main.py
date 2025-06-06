@@ -8,25 +8,27 @@ from dataclasses import dataclass, field
 from config import FILE_NAME, MINUTE
 
 
-class OrderType(Enum):
+class Type(Enum):
     BULLISH = "BULLISH"
     BEARISH = "BEARISH"
 
 
 @dataclass
 class Imbalance:
-    type: OrderType
-    date_time: datetime
-    gap_start: float
-    gap_end: float
+    type: Type
+    start_time: datetime
+    end_time: datetime
+    gap_high: float
+    gap_low: float
 
 
 @dataclass
 class OrderBlock:
-    type: OrderType
-    date_time: datetime
-    price: float
-    volume: int
+    type: Type
+    start_time: datetime
+    end_time: datetime
+    high: float
+    low: float
 
 
 class CandleColor(Enum):
@@ -117,7 +119,7 @@ def find_order_blocks(candles: list[Candle]) -> list[OrderBlock]:
         if is_bullish and high_volume:
             order_blocks.append(
                 OrderBlock(
-                    type=OrderType.BULLISH,
+                    type=Type.BULLISH,
                     date_time=current.date_time,
                     price=prev.high,
                     volume=current.volume,
@@ -127,7 +129,7 @@ def find_order_blocks(candles: list[Candle]) -> list[OrderBlock]:
         elif is_bearish and high_volume:
             order_blocks.append(
                 OrderBlock(
-                    type=OrderType.BEARISH,
+                    type=Type.BEARISH,
                     date_time=current.date_time,
                     price=prev.low,
                     volume=current.volume,
@@ -140,34 +142,32 @@ def find_order_blocks(candles: list[Candle]) -> list[OrderBlock]:
 
 
 def find_imbalances(candles: list[Candle]) -> list[Imbalance]:
-    if len(candles) < 2:
-        return []
-
     imbalances = []
-    prev = candles[0]
 
-    for current in candles[1:]:
-        if current.low > prev.high:
+    if len(candles) < 3:
+        return imbalances
+
+    for c1, _, c3 in zip(candles[0:], candles[1:], candles[2:]):
+        if c1.low > c3.high:
             imbalances.append(
                 Imbalance(
-                    type=OrderType.BULLISH,
-                    date_time=current.date_time,
-                    gap_start=prev.high,
-                    gap_end=current.low,
+                    type=Type.BEARISH,
+                    start_time=c1.date_time,
+                    end_time=c3.date_time,
+                    gap_high=c1.low,
+                    gap_low=c3.high,
                 )
             )
-
-        elif current.high < prev.low:
+        elif c1.high < c3.low:
             imbalances.append(
                 Imbalance(
-                    type=OrderType.BEARISH,
-                    date_time=current.date_time,
-                    gap_start=prev.low,
-                    gap_end=current.high,
+                    type=Type.BULLISH,
+                    start_time=c1.date_time,
+                    end_time=c3.date_time,
+                    gap_high=c3.low,
+                    gap_low=c1.high,
                 )
             )
-
-        prev = replace(current)
 
     return imbalances
 
@@ -175,16 +175,12 @@ def find_imbalances(candles: list[Candle]) -> list[Imbalance]:
 def main():
     candles = parse_data(file_name=FILE_NAME)
 
-    aggregated_60min = aggregate_data(candles=candles, timeframe=60 * MINUTE)
-    aggregated_15min = aggregate_data(candles=candles, timeframe=15 * MINUTE)
-
-    order_blocks_60min = find_order_blocks(aggregated_60min)
-    print(order_blocks_60min)
-
-    imbalances_60min = find_imbalances(candles=aggregated_60min)
+    candles_60min = aggregate_data(candles=candles, timeframe=60 * MINUTE)
+    imbalances_60min = find_imbalances(candles_60min)
     print(imbalances_60min)
 
-    imbalances_15min = find_imbalances(candles=aggregated_15min)
+    candles_15min = aggregate_data(candles=candles, timeframe=15 * MINUTE)
+    imbalances_15min = find_imbalances(candles_15min)
     print(imbalances_15min)
 
 
