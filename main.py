@@ -40,7 +40,7 @@ class Candle:
 
 @dataclass
 class Imbalance:
-    type: Type
+    type: CandleColor
     start_time: datetime
     end_time: datetime
     gap_high: float
@@ -50,7 +50,7 @@ class Imbalance:
 @dataclass
 class OrderBlock:
     candle: Candle
-    type: Type
+    type: CandleColor
     high: float
     low: float
 
@@ -95,9 +95,11 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
             current_candle.close = candle.close
             current_candle.volume += candle.volume
         else:
+            current_candle.set_color()
             aggregated.append(current_candle)
             current_candle = replace(candle)
 
+    current_candle.set_color()
     aggregated.append(current_candle)
 
     return aggregated
@@ -116,25 +118,18 @@ def find_order_blocks(
     for cl, c1, c2, cr in zip(
         candles[0:], candles[1:], candles[2:], candles[3:]
     ):
-        print(c1.date_time, c2.date_time)
-        print(c1.color, c2.color)
-        print(c2.open_, c1.close)
-        print(c2.close, c1.open_)
-        print("")
         if (
             (c1.color, c2.color) == (CandleColor.RED, CandleColor.GREEN)
             and c2.open_ <= c1.close + tolerance
             and c2.close >= c1.open_
         ):
-            print(1)
             high = c1.high if c2.date_time in imbalances else c1.open_
             low = min(c1.low, c2.low)
             if low <= cl.low and low <= cr.low:
-                print(2)
                 order_blocks.append(
                     OrderBlock(
                         candle=c2,
-                        type=Type.BULLISH,
+                        type=CandleColor.GREEN,
                         high=high,
                         low=low,
                     )
@@ -145,15 +140,13 @@ def find_order_blocks(
             and c2.open_ >= c1.close - tolerance
             and c2.close <= c1.open_
         ):
-            print(3)
             high = max(c1.high, c2.high)
             low = c1.low if c2.date_time in imbalances else c1.open_
             if high >= cl.high and high >= cr.high:
-                print(4)
                 order_blocks.append(
                     OrderBlock(
                         candle=c2,
-                        type=Type.BEARISH,
+                        type=CandleColor.RED,
                         high=high,
                         low=low,
                     )
@@ -170,7 +163,7 @@ def find_imbalances(candles: list[Candle]) -> dict[datetime, Imbalance]:
     for c1, _, c3 in zip(candles[0:], candles[1:], candles[2:]):
         if c1.low > c3.high:
             imbalances[c1.date_time] = Imbalance(
-                type=Type.BEARISH,
+                type=CandleColor.RED,
                 start_time=c1.date_time,
                 end_time=c3.date_time,
                 gap_high=c1.low,
@@ -178,7 +171,7 @@ def find_imbalances(candles: list[Candle]) -> dict[datetime, Imbalance]:
             )
         elif c1.high < c3.low:
             imbalances[c1.date_time] = Imbalance(
-                type=Type.BULLISH,
+                type=CandleColor.GREEN,
                 start_time=c1.date_time,
                 end_time=c3.date_time,
                 gap_high=c3.low,
@@ -192,15 +185,22 @@ def main():
     candles = parse_data(file_name=FILE_NAME)
 
     candles_60min = aggregate_data(candles, 60 * MINUTE)
+    # print(candles_60min)
+
     imbalances_60min = find_imbalances(candles_60min)
     # print(imbalances_60min)
 
     candles_15min = aggregate_data(candles, 15 * MINUTE)
+    # print(candles_15min)
+
     imbalances_15min = find_imbalances(candles_15min)
     # print(imbalances_15min)
 
     order_blocks_60min = find_order_blocks(candles_60min, imbalances_60min)
-    print(order_blocks_60min)
+    # print(order_blocks_60min)
+
+    order_blocks_15min = find_order_blocks(candles_15min, imbalances_15min)
+    # print(order_blocks_15min)
 
 
 if __name__ == "__main__":
