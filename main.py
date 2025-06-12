@@ -12,9 +12,11 @@ class Type(Enum):
     BULLISH = "BULLISH"
     BEARISH = "BEARISH"
 
+
 class CandleColor(Enum):
     GREEN = "GREEN"
     RED = "RED"
+
 
 @dataclass
 class Candle:
@@ -35,6 +37,7 @@ class Candle:
     def __post_init__(self) -> None:
         self.set_color()
 
+
 @dataclass
 class Imbalance:
     type: Type
@@ -50,7 +53,6 @@ class OrderBlock:
     type: Type
     high: float
     low: float
-
 
 
 def convert_datetime(date_time: str) -> datetime:
@@ -102,7 +104,9 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
 
 
 def find_order_blocks(
-    candles: list[Candle], imbalances: list[Imbalance], tolerance: int = 1
+    candles: list[Candle],
+    imbalances: dict[datetime, Imbalance],
+    tolerance: int = 1,
 ) -> list[OrderBlock]:
     order_blocks = []
 
@@ -116,14 +120,14 @@ def find_order_blocks(
         print(c1.color, c2.color)
         print(c2.open_, c1.close)
         print(c2.close, c1.open_)
-        print('')
+        print("")
         if (
             (c1.color, c2.color) == (CandleColor.RED, CandleColor.GREEN)
             and c2.open_ <= c1.close + tolerance
             and c2.close >= c1.open_
         ):
             print(1)
-            high = c1.open_
+            high = c1.high if c2.date_time in imbalances else c1.open_
             low = min(c1.low, c2.low)
             if low <= cl.low and low <= cr.low:
                 print(2)
@@ -143,7 +147,7 @@ def find_order_blocks(
         ):
             print(3)
             high = max(c1.high, c2.high)
-            low = c1.open_
+            low = c1.low if c2.date_time in imbalances else c1.open_
             if high >= cl.high and high >= cr.high:
                 print(4)
                 order_blocks.append(
@@ -157,32 +161,28 @@ def find_order_blocks(
     return order_blocks
 
 
-def find_imbalances(candles: list[Candle]) -> list[Imbalance]:
-    imbalances = []
+def find_imbalances(candles: list[Candle]) -> dict[datetime, Imbalance]:
+    imbalances = {}
 
     if len(candles) < 3:
         return imbalances
 
     for c1, _, c3 in zip(candles[0:], candles[1:], candles[2:]):
         if c1.low > c3.high:
-            imbalances.append(
-                Imbalance(
-                    type=Type.BEARISH,
-                    start_time=c1.date_time,
-                    end_time=c3.date_time,
-                    gap_high=c1.low,
-                    gap_low=c3.high,
-                )
+            imbalances[c1.date_time] = Imbalance(
+                type=Type.BEARISH,
+                start_time=c1.date_time,
+                end_time=c3.date_time,
+                gap_high=c1.low,
+                gap_low=c3.high,
             )
         elif c1.high < c3.low:
-            imbalances.append(
-                Imbalance(
-                    type=Type.BULLISH,
-                    start_time=c1.date_time,
-                    end_time=c3.date_time,
-                    gap_high=c3.low,
-                    gap_low=c1.high,
-                )
+            imbalances[c1.date_time] = Imbalance(
+                type=Type.BULLISH,
+                start_time=c1.date_time,
+                end_time=c3.date_time,
+                gap_high=c3.low,
+                gap_low=c1.high,
             )
 
     return imbalances
