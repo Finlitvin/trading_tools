@@ -12,29 +12,9 @@ class Type(Enum):
     BULLISH = "BULLISH"
     BEARISH = "BEARISH"
 
-
-@dataclass
-class Imbalance:
-    type: Type
-    start_time: datetime
-    end_time: datetime
-    gap_high: float
-    gap_low: float
-
-
-@dataclass
-class OrderBlock:
-    type: Type
-    start_time: datetime
-    end_time: datetime
-    high: float
-    low: float
-
-
 class CandleColor(Enum):
     GREEN = "GREEN"
     RED = "RED"
-
 
 @dataclass
 class Candle:
@@ -54,6 +34,23 @@ class Candle:
 
     def __post_init__(self) -> None:
         self.set_color()
+
+@dataclass
+class Imbalance:
+    type: Type
+    start_time: datetime
+    end_time: datetime
+    gap_high: float
+    gap_low: float
+
+
+@dataclass
+class OrderBlock:
+    candle: Candle
+    type: Type
+    high: float
+    low: float
+
 
 
 def convert_datetime(date_time: str) -> datetime:
@@ -104,40 +101,59 @@ def aggregate_data(candles: list[Candle], timeframe: int) -> list[Candle]:
     return aggregated
 
 
-def find_order_blocks(candles: list[Candle]) -> list[OrderBlock]:
-    if len(candles) < 2:
-        return []
-
+def find_order_blocks(
+    candles: list[Candle], imbalances: list[Imbalance], tolerance: int = 1
+) -> list[OrderBlock]:
     order_blocks = []
-    prev = candles[0]
 
-    for current in candles[1:]:
-        is_bullish = current.close > prev.high
-        is_bearish = current.close < prev.low
-        high_volume = current.volume > 1.5 * prev.volume
+    if len(candles) < 2:
+        return order_blocks
 
-        if is_bullish and high_volume:
-            order_blocks.append(
-                OrderBlock(
-                    type=Type.BULLISH,
-                    date_time=current.date_time,
-                    price=prev.high,
-                    volume=current.volume,
+    for cl, c1, c2, cr in zip(
+        candles[0:], candles[1:], candles[2:], candles[3:]
+    ):
+        print(c1.date_time, c2.date_time)
+        print(c1.color, c2.color)
+        print(c2.open_, c1.close)
+        print(c2.close, c1.open_)
+        print('')
+        if (
+            (c1.color, c2.color) == (CandleColor.RED, CandleColor.GREEN)
+            and c2.open_ <= c1.close + tolerance
+            and c2.close >= c1.open_
+        ):
+            print(1)
+            high = c1.open_
+            low = min(c1.low, c2.low)
+            if low <= cl.low and low <= cr.low:
+                print(2)
+                order_blocks.append(
+                    OrderBlock(
+                        candle=c2,
+                        type=Type.BULLISH,
+                        high=high,
+                        low=low,
+                    )
                 )
-            )
 
-        elif is_bearish and high_volume:
-            order_blocks.append(
-                OrderBlock(
-                    type=Type.BEARISH,
-                    date_time=current.date_time,
-                    price=prev.low,
-                    volume=current.volume,
+        if (
+            (c1.color, c2.color) == (CandleColor.GREEN, CandleColor.RED)
+            and c2.open_ >= c1.close - tolerance
+            and c2.close <= c1.open_
+        ):
+            print(3)
+            high = max(c1.high, c2.high)
+            low = c1.open_
+            if high >= cl.high and high >= cr.high:
+                print(4)
+                order_blocks.append(
+                    OrderBlock(
+                        candle=c2,
+                        type=Type.BEARISH,
+                        high=high,
+                        low=low,
+                    )
                 )
-            )
-
-        prev = replace(current)
-
     return order_blocks
 
 
@@ -175,13 +191,16 @@ def find_imbalances(candles: list[Candle]) -> list[Imbalance]:
 def main():
     candles = parse_data(file_name=FILE_NAME)
 
-    candles_60min = aggregate_data(candles=candles, timeframe=60 * MINUTE)
+    candles_60min = aggregate_data(candles, 60 * MINUTE)
     imbalances_60min = find_imbalances(candles_60min)
-    print(imbalances_60min)
+    # print(imbalances_60min)
 
-    candles_15min = aggregate_data(candles=candles, timeframe=15 * MINUTE)
+    candles_15min = aggregate_data(candles, 15 * MINUTE)
     imbalances_15min = find_imbalances(candles_15min)
-    print(imbalances_15min)
+    # print(imbalances_15min)
+
+    order_blocks_60min = find_order_blocks(candles_60min, imbalances_60min)
+    print(order_blocks_60min)
 
 
 if __name__ == "__main__":
